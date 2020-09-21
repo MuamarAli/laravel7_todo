@@ -11,12 +11,12 @@
                 @endif
                 <div class="card">
                     <div class="card-header">
-                        {{ $task->title }}
+                        {{ $board->title }}
                         <a class="btn btn-danger float-right" href="{{ route('task.index') }}">Back</a>
                     </div>
 
                     <div class="card-body">
-                        <form action="{{ route('item.store', $task->id) }}" method="POST" class="form-inline">
+                        <form action="{{ route('item.store', $board->id) }}" method="POST" class="form-inline">
                             @csrf
                             <div class="form-group">
                                 <label for="task" class="sr-only">Password</label>
@@ -41,12 +41,12 @@
                             </thead>
 
                             <tbody>
-                            @if (count($task->taskItem) === 0)
+                            @if (count($board->taskItem) === 0)
                                 <tr>
                                     <td scope="row" colspan="10" class="text-center">No Task found.</td>
                                 </tr>
                             @else
-                                @foreach ($task->taskItem as $item)
+                                @foreach ($board->taskItem as $item)
                                     <form
                                         id="formIsDone_{{ $item->id }}"
                                         action="{{ route('item.isDone', $item->id) }}"

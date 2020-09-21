@@ -2,10 +2,10 @@
 
 /** @var \Illuminate\Database\Eloquent\Factory $factory */
 
-use App\TaskList;
+use App\Board;
 use Faker\Generator as Faker;
 
-$factory->define(TaskList::class, function (Faker $faker) {
+$factory->define(Board::class, function (Faker $faker) {
     return [
         //
     ];

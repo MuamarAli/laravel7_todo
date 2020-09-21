@@ -3,18 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Board;
-use App\Http\Requests\TaskListRequest;
+use App\Http\Requests\TaskItemRequest;
+use App\TaskItem;
 use App\TaskList;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 /**
- * Class TaskListController
+ * Class TaskItemController
  *
  * @package App\Http\Controllers
  */
-class TaskListController extends Controller
+class TaskItemController extends Controller
 {
     /**
      * Create a new controller instance.
@@ -31,29 +32,9 @@ class TaskListController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index($slug)
+    public function index()
     {
-        $board = Board::where('slug', $slug)->get()[0];
-
-        return view(
-            'task.index',
-            [
-                'tasks' => $board->taskList,
-                'board' => $board
-            ]
-        );
-    }
-
-    /**
-     * @param $slug
-     * @return false|string
-     */
-    public function testing($slug)
-    {
-        $board = Board::where('slug', $slug)->get()[0];
-        $taskList['data'] = $board->taskList;
-
-        return json_encode($taskList);
+        //
     }
 
     /**
@@ -69,44 +50,46 @@ class TaskListController extends Controller
     /**
      * Store a newly created resource in storage.
      *
-     * @param  TaskListRequest $taskListRequest
+     * @param  TaskItemRequest $taskItemRequest
+     * @param  TaskList $taskList
      * @return \Illuminate\Http\Response
      */
-    public function store(TaskListRequest $taskListRequest, $slug)
+    public function store(TaskItemRequest $taskItemRequest, $slug)
     {
-        $board = Board::where('slug', $slug)->get()[0];
+        $taskList = TaskList::where('slug', $slug)->get()[0];
+        $board = Board::findOrFail($taskList->board_id);
 
-        $task = new TaskList();
+        $item = new TaskItem();
 
-        $task->title = $taskListRequest->title;
-        $task->slug = $this->checkSlug($taskListRequest->title);
-        $task->user_id = Auth::user()->id;
-        $task->board_id = $board->id;
-        $task->save();
+        $item->task = $taskItemRequest->task;
+        $item->slug = $this->checkSlug($taskItemRequest->task);
+        $item->user_id = Auth::user()->id;
+        $item->list_id = $taskList->id;
+        $item->save();
 
         return redirect()
             ->route('task.index', $board->slug)
-            ->with('status-list', 'Successfully Inserted!');
+            ->with('status', 'Successfully Inserted!');
     }
 
     /**
      * Display the specified resource.
      *
-     * @param  TaskList $task
+     * @param  \App\TaskItem  $taskItem
      * @return \Illuminate\Http\Response
      */
-    public function show(TaskList $task)
+    public function show(TaskItem $taskItem)
     {
-        return view('task.show', ['task' => $task]);
+        //
     }
 
     /**
      * Show the form for editing the specified resource.
      *
-     * @param  int  $id
+     * @param  \App\TaskItem  $taskItem
      * @return \Illuminate\Http\Response
      */
-    public function edit($id)
+    public function edit(TaskItem $taskItem)
     {
         //
     }
@@ -115,23 +98,44 @@ class TaskListController extends Controller
      * Update the specified resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
+     * @param  \App\TaskItem  $taskItem
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, $listSlug, $value)
     {
-        //
+        if ($request->ajax()) {
+            TaskList::where('slug', $listSlug)->update(['title' => $value]);
+
+            return response()->json('updated');
+        }
     }
 
     /**
      * Remove the specified resource from storage.
      *
-     * @param  int  $id
+     * @param  \App\TaskItem  $taskItem
      * @return \Illuminate\Http\Response
      */
-    public function destroy($id)
+    public function destroy(TaskItem $taskItem)
     {
         //
+    }
+
+    /**
+     * Set task as done.
+     *
+     * @param Request $request
+     * @param $id
+     *
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function isDone(Request $request, $slug)
+    {
+        $item = Auth::user()->listItems()->where('slug', $slug)->get()[0];
+        $item->is_done = !$request->is_done;
+        $item->save();
+
+        return redirect()->back();
     }
 
     public function checkSlug(string $fullName, int $i = 0)
@@ -161,7 +165,7 @@ class TaskListController extends Controller
     public function isSlugExist(string $slug): bool
     {
         try {
-            $entity = TaskList::where('slug', $slug)->get()[0];
+            $entity = TaskItem::where('slug', $slug)->get()[0];
 
             $result = empty($entity) ? false : true;
         } catch (\Exception $e) {
