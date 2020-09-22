@@ -20,6 +20,7 @@ class CreateTaskItemsTable extends Migration
             $table->string('task');
             $table->boolean('is_done')->default(0);
             $table->string('slug');
+            $table->string('slug_id')->unique()->nullable(false);
             $table->timestamps();
 
             $table

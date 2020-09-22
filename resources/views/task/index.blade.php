@@ -5,7 +5,19 @@
     <div class="row justify-content-center mb-5">
         <div class="col-md">
             <div class="card">
-                <div class="card-header">{{ $board->title }}</div>
+                <div class="card-header">
+                    <h6 class="card-title">
+                        <div class="input-group">
+                            <input type="text" class="form-control update_board" id="{{ $board->slug_id }}" value="{{ $board->title }}">
+                                <div class="input-group-append ml-3">
+                                    <form action="{{ route('board.destroy', $board->slug_id) }}" method="POST">
+                                        @csrf
+                                        @method('delete')
+                                        <button type="submit" class="close"><span aria-hidden="true">&times;</span></button>
+                                    </form>
+                                </div>
+                        </div>
+                </div>
 
                 <div class="card-body">
                     @if (session('status-list'))
@@ -14,9 +26,9 @@
                         </div>
                     @endif
 
-                    <form action="{{ route('task.store', $board->slug) }}" method="POST">
+                    <form action="{{ route('task.store', $board->slug_id) }}" method="POST">
                         @csrf
-                        <div class="input-group input-group-lg">
+                        <div class="input-group input-group-md">
                             <input type="text" class="form-control" name="title" id="title" placeholder="Create todo">
                             <div class="input-group-prepend">
                                 <button type="submit" class="btn btn-outline-dark">Create List</button>
@@ -35,32 +47,10 @@
                                 <th scope="col">Title</th>
                                 <th scope="col">Created Date</th>
                                 <th scope="col">Updated Date</th>
-                                {{--<th scope="col">Action</th>--}}
                             </tr>
                         </thead>
 
-                        <tbody data-board="{{ $board->slug }}">
-                        {{--@if (count($tasks) === 0)--}}
-                            {{--<tr>--}}
-                                {{--<td scope="row" colspan="10" class="text-center">No Tasks found.</td>--}}
-                            {{--</tr>--}}
-                        {{--@else--}}
-                            {{--@foreach ($tasks as $task)--}}
-                                {{--<tr>--}}
-                                    {{--<th scope="row">{{ $task->id }}</th>--}}
-                                    {{--<td>{{ $task->title }}</td>--}}
-                                    {{--<td>{{ $task->created_at }}</td>--}}
-                                    {{--<td>{{ $task->updated_at }}</td>--}}
-                                    {{--<td>--}}
-                                        {{--<a href="{{ route('task.show', $task) }}">Show</a>--}}
-                                        {{--|--}}
-                                        {{--<a href="#">Edit</a>--}}
-                                        {{--|--}}
-                                        {{--<a href="#">Delete</a>--}}
-                                    {{--</td>--}}
-                                {{--</tr>--}}
-                            {{--@endforeach--}}
-                        {{--@endif--}}
+                        <tbody>
                         </tbody>
                     </table>
                 </div>
@@ -77,7 +67,16 @@
                     <div class="card">
                         <div class="card-header">
                             <h6 class="card-title">
-                                <input type="text" class="form-control" name="updateTask" data-task="{{ $task->slug }}" value="{{ $task->title }}">
+                                <div class="input-group">
+                                    <input type="text" class="form-control update_task" id="{{ $task->slug_id }}" value="{{ $task->title }}">
+                                    <div class="input-group-append ml-3">
+                                        <form action="{{ route('task.destroy', [$board->slug_id, $task->slug_id]) }}" method="POST">
+                                            @csrf
+                                            @method('delete')
+                                            <button type="submit" class="close"><span aria-hidden="true">&times;</span></button>
+                                        </form>
+                                    </div>
+                                </div>
                             </h6>
                         </div>
 
@@ -93,24 +92,24 @@
                                 <tbody>
                                 @if (count($task->taskItem) === 0)
                                     <tr>
-                                        <td scope="row" colspan="10" class="text-center">No Task found.</td>
+                                        <td scope="row" colspan="10" class="text-center">No Task Items found.</td>
                                     </tr>
                                 @else
                                     @foreach ($task->taskItem as $item)
                                         <form
-                                            id="formIsDone_{{ $item->id }}"
-                                            action="{{ route('item.isDone', $item->slug) }}"
+                                            id="form_is_done{{ $item->slug_id }}"
+                                            action="{{ route('item.isDone', $item->slug_id) }}"
                                             method="POST"
                                         >
                                             @csrf
-                                            <input type="hidden" name="list_item_id" value="{{ $item->id }}">
+                                            <input type="hidden" name="list_item_id" value="{{ $item->slug_id }}">
                                             <input type="hidden" name="is_done" value="{{ $item->is_done }}">
 
                                             <tr>
                                                 <td>{{ $item->task }}</td>
                                                 <td>
                                                     <input
-                                                        onchange="document.getElementById('formIsDone_{{ $item->id }}').submit()"
+                                                        onchange="document.getElementById('form_is_done{{ $item->slug_id }}').submit()"
                                                         type="checkbox" {{ $item->is_done ? 'checked' : '' }}
                                                     >
                                                 </td>
@@ -145,9 +144,14 @@
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 <script>
     $(document).ready( function () {
-        $('input[name=updateTask]').change(function() {
-            let value = $(this).val();
-            let listSlug = $(this).data().task;
+        $('.update_task').change(function() {
+            let title = $(this).val();
+            let board = {slugId : "{{ $board->slug_id }}"};
+            let taskSlugId = $(this).attr('id');
+            let url = '{{ route("task.update", [":slugId", ":slugId"]) }}';
+
+            url = url.replace(':slugId', board.slugId );
+            url = url.replace(':slugId', taskSlugId );
 
             $.ajaxSetup({
                 headers: {
@@ -157,9 +161,39 @@
 
             $.ajax({
                 type: "put",
-                url: listSlug + "/items/" + value,
+                url: url,
+                data: {
+                  title: title
+                },
                 success: function(data) {
                     getAll();
+                },
+                error: function (error) {
+                    console.log(error);
+                }
+            });
+        });
+
+        $('.update_board').change(function() {
+            let title = $(this).val();
+            let boardSlugId = $(this).attr('id');
+            let url = '{{ route("board.update", ":slugId") }}';
+            url = url.replace(':slugId', boardSlugId);
+
+            $.ajaxSetup({
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                }
+            });
+
+            $.ajax({
+                type: "put",
+                url: url,
+                data: {
+                    title : title
+                },
+                success: function(data) {
+                    console.log(data);
                 },
                 error: function (error) {
                     console.log(error);
@@ -170,16 +204,18 @@
         getAll();
 
         function getAll() {
-            let slug = $('tbody').data().board;
+            let board = {slugId : "{{ $board->slug_id }}"};
+            let url = '{{ route("task.fetchAll", ":slugId") }}';
+            url = url.replace(':slugId', board.slugId);
 
             $.ajax({
-                url: slug + '/testing',
+                url: url,
                 type: 'get',
                 dataType: 'json',
                 success: function(response){
                     let len = 0;
 
-                    $('#listTable tbody').empty(); // Empty <tbody>
+                    $('#listTable tbody').empty();
                     if (response['data'] != null){
                         len = response['data'].length;
                     }
@@ -202,7 +238,7 @@
                         }
                     } else {
                         let tr_str = "<tr>" +
-                            "<td align='center' colspan='4'>No record found.</td>" +
+                            "<td align='center' colspan='4'>No Task List found.</td>" +
                             "</tr>";
 
                         $("#listTable tbody").append(tr_str);

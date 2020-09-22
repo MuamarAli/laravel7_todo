@@ -31,9 +31,9 @@ class TaskListController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index($slug)
+    public function index($slugId)
     {
-        $board = Board::where('slug', $slug)->get()[0];
+        $board = Board::where('slug_id', $slugId)->get()[0];
 
         return view(
             'task.index',
@@ -45,12 +45,14 @@ class TaskListController extends Controller
     }
 
     /**
+     * Get all using ajax
+     *
      * @param $slug
      * @return false|string
      */
-    public function testing($slug)
+    public function testing($slugId)
     {
-        $board = Board::where('slug', $slug)->get()[0];
+        $board = Board::where('slug_id', $slugId)->get()[0];
         $taskList['data'] = $board->taskList;
 
         return json_encode($taskList);
@@ -72,20 +74,21 @@ class TaskListController extends Controller
      * @param  TaskListRequest $taskListRequest
      * @return \Illuminate\Http\Response
      */
-    public function store(TaskListRequest $taskListRequest, $slug)
+    public function store(TaskListRequest $taskListRequest, $slugId)
     {
-        $board = Board::where('slug', $slug)->get()[0];
+        $board = Board::where('slug_id', $slugId)->get()[0];
 
         $task = new TaskList();
 
         $task->title = $taskListRequest->title;
         $task->slug = $this->checkSlug($taskListRequest->title);
+        $task->slug_id = $this->generateSlugId();
         $task->user_id = Auth::user()->id;
         $task->board_id = $board->id;
         $task->save();
 
         return redirect()
-            ->route('task.index', $board->slug)
+            ->route('task.index', $board->slug_id)
             ->with('status-list', 'Successfully Inserted!');
     }
 
@@ -118,9 +121,16 @@ class TaskListController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, $slug, $slugId)
     {
-        //
+        if ($request->ajax()) {
+            TaskList::where('slug_id', $slugId)->update([
+                'title' => $request->title,
+                'slug' => $this->checkSlug($request->title)
+            ]);
+
+            return response()->json('updated');
+        }
     }
 
     /**
@@ -129,9 +139,15 @@ class TaskListController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function destroy($id)
+    public function destroy($boardSlugId, $listSlug)
     {
-        //
+        $board = Board::where('slug_id', $boardSlugId)->get()[0];
+
+        TaskList::where('slug_id', $listSlug)->delete();
+
+        return redirect()
+            ->route('task.index', $board->slug_id)
+            ->with('status-list', 'Successfully Deleted!');
     }
 
     public function checkSlug(string $fullName, int $i = 0)
@@ -169,5 +185,61 @@ class TaskListController extends Controller
         }
 
         return $result;
+    }
+
+    /**
+     * @throws \Exception
+     *
+     * @return string
+     */
+    public function generateSlugId()
+    {
+        try {
+            $boardId = TaskList::count();
+
+            if ($boardId <= 0) {
+                $boardId++;
+
+                $result = $this->slugifyId($boardId, 'b');
+            } else {
+                $trim = ltrim(
+                    TaskList::latest()->orderBy('created_at', 'DESC')->first()->slug_id,
+                    'b'
+                );
+
+                $deSlugId = intval(ltrim($trim, '0'));
+                $deSlugId++;
+
+                $result = $this->slugifyId($deSlugId, 'b');
+            }
+        } catch (\Exception $e) {
+            throw new \Exception(
+                'An error occurred at generating the slug id'
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param int $id
+     * @param string $prefix
+     *
+     * @return string
+     */
+    public function slugifyId(int $id, string $prefix = ''): string
+    {
+        try {
+            //Adds trailing zeroes and a prefix
+            $slug = (string)sprintf('%04s', $id);
+
+            if (!empty($prefix)) {
+                $slug = (string)$prefix . $slug;
+            }
+        } catch (\Exception $e) {
+            throw new $e;
+        }
+
+        return $slug;
     }
 }

@@ -50,9 +50,11 @@ class TaskItemController extends Controller
     /**
      * Store a newly created resource in storage.
      *
-     * @param  TaskItemRequest $taskItemRequest
-     * @param  TaskList $taskList
-     * @return \Illuminate\Http\Response
+     * @param TaskItemRequest $taskItemRequest
+     * @param $slug
+     * @throws \Exception
+     *
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function store(TaskItemRequest $taskItemRequest, $slug)
     {
@@ -63,6 +65,7 @@ class TaskItemController extends Controller
 
         $item->task = $taskItemRequest->task;
         $item->slug = $this->checkSlug($taskItemRequest->task);
+        $item->slug_id = $this->generateSlugId();
         $item->user_id = Auth::user()->id;
         $item->list_id = $taskList->id;
         $item->save();
@@ -75,7 +78,7 @@ class TaskItemController extends Controller
     /**
      * Display the specified resource.
      *
-     * @param  \App\TaskItem  $taskItem
+     * @param  TaskItem  $taskItem
      * @return \Illuminate\Http\Response
      */
     public function show(TaskItem $taskItem)
@@ -97,23 +100,21 @@ class TaskItemController extends Controller
     /**
      * Update the specified resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\TaskItem  $taskItem
+     * @param Request $request
+     * @param $listSlug
+     * @param $value
+     *
      * @return \Illuminate\Http\Response
      */
     public function update(Request $request, $listSlug, $value)
     {
-        if ($request->ajax()) {
-            TaskList::where('slug', $listSlug)->update(['title' => $value]);
-
-            return response()->json('updated');
-        }
+        //
     }
 
     /**
      * Remove the specified resource from storage.
      *
-     * @param  \App\TaskItem  $taskItem
+     * @param  TaskItem  $taskItem
      * @return \Illuminate\Http\Response
      */
     public function destroy(TaskItem $taskItem)
@@ -125,23 +126,31 @@ class TaskItemController extends Controller
      * Set task as done.
      *
      * @param Request $request
-     * @param $id
+     * @param $slugId
      *
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function isDone(Request $request, $slug)
+    public function isDone(Request $request, $slugId)
     {
-        $item = Auth::user()->listItems()->where('slug', $slug)->get()[0];
+        $item = Auth::user()->listItems()->where('slug_id', $slugId)->get()[0];
         $item->is_done = !$request->is_done;
         $item->save();
 
         return redirect()->back();
     }
 
+    /**
+     * @param string $fullName
+     * @param int $i
+     * @throws \Exception
+     *
+     * @return string
+     */
     public function checkSlug(string $fullName, int $i = 0)
     {
         try {
             $slug = Str::slug($fullName);
+
             if ($i > 0) {
                 if ($this->isSlugExist($slug . '-' . $i)) {
                     return $this->checkSlug($slug, $i + 1);
@@ -162,6 +171,11 @@ class TaskItemController extends Controller
         }
     }
 
+    /**
+     * @param string $slug
+     *
+     * @return bool
+     */
     public function isSlugExist(string $slug): bool
     {
         try {
@@ -173,5 +187,61 @@ class TaskItemController extends Controller
         }
 
         return $result;
+    }
+
+    /**
+     * @throws \Exception
+     *
+     * @return string
+     */
+    public function generateSlugId()
+    {
+        try {
+            $boardId = TaskItem::count();
+
+            if ($boardId <= 0) {
+                $boardId++;
+
+                $result = $this->slugifyId($boardId, 'b');
+            } else {
+                $trim = ltrim(
+                    TaskItem::latest()->orderBy('created_at', 'DESC')->first()->slug_id,
+                    'b'
+                );
+
+                $deSlugId = intval(ltrim($trim, '0'));
+                $deSlugId++;
+
+                $result = $this->slugifyId($deSlugId, 'b');
+            }
+        } catch (\Exception $e) {
+            throw new \Exception(
+                'An error occurred at generating the slug id'
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param int $id
+     * @param string $prefix
+     *
+     * @return string
+     */
+    public function slugifyId(int $id, string $prefix = ''): string
+    {
+        try {
+            //Adds trailing zeroes and a prefix
+            $slug = (string)sprintf('%04s', $id);
+
+            if (!empty($prefix)) {
+                $slug = (string)$prefix . $slug;
+            }
+        } catch (\Exception $e) {
+            throw new $e;
+        }
+
+        return $slug;
     }
 }

@@ -15,7 +15,8 @@
                     @endif
 
                     <form action="{{ route('board.store') }}" method="POST">
-                        <div class="input-group input-group-lg">
+                        @csrf
+                        <div class="input-group input-group-md">
                             <input type="text" class="form-control" name="title" id="title" placeholder="Board name">
 
                             <div class="input-group-prepend">
@@ -35,7 +36,6 @@
                             <th scope="col">Title</th>
                             <th scope="col">Created Date</th>
                             <th scope="col">Updated Date</th>
-                            <th scope="col">Action</th>
                         </tr>
                         </thead>
 
@@ -48,16 +48,9 @@
                             @foreach ($boards as $board)
                                 <tr>
                                     <th scope="row">{{ $board->id }}</th>
-                                    <td>{{ $board->title }}</td>
+                                    <td><a href="{{ route('task.index', $board->slug_id) }}" style="color: inherit  ">{{ $board->title }}</a></td>
                                     <td>{{ $board->created_at }}</td>
                                     <td>{{ $board->updated_at }}</td>
-                                    <td>
-                                        <a href="{{ route('task.index', $board->slug) }}">Show</a>
-                                        |
-                                        <a href="#">Edit</a>
-                                        |
-                                        <a href="#">Delete</a>
-                                    </td>
                                 </tr>
                             @endforeach
                         @endif

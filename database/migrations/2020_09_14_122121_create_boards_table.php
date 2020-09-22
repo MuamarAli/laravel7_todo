@@ -18,6 +18,7 @@ class CreateBoardsTable extends Migration
             $table->unsignedBigInteger('user_id');
             $table->string('title')->unique();
             $table->string('slug');
+            $table->string('slug_id')->unique()->nullable(false);
             $table->timestamps();
 
             $table

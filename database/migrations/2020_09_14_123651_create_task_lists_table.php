@@ -19,6 +19,7 @@ class CreateTaskListsTable extends Migration
             $table->unsignedBigInteger('board_id');
             $table->string('title');
             $table->string('slug');
+            $table->string('slug_id')->unique()->nullable(false);
             $table->timestamps();
 
             $table
